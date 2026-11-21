@@ -1,40 +1,64 @@
-
-name: Build Flutter APK
-
+name: Build APK
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+    inputs:
+      app:
+        description: "Which app to build (user or admin)"
+        type: choice
+        options: [user, admin]
+        default: user
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - name: Find app folder
+        id: find
+        run: |
+          APP="${{ inputs.app }}"
+          F=$(grep -rl --include=pubspec.yaml -x -e "name: $APP" . | head -1 || true)
+          if [ -z "$F" ]; then
+            echo "Could not find a pubspec.yaml with 'name: $APP'. Project files found:"
+            find . -name pubspec.yaml -not -path "./.git/*"
+            exit 1
+          fi
+          echo "App folder: $(dirname "$F")"
+          echo "dir=$(dirname "$F")" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build APK
-        run: flutter build apk --release
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      # FIXED signing key, so the SHA-1 is the same for every build and for both apps:
+      #   SHA-1 = 1B:D8:4E:29:DD:52:CA:0B:1A:4D:3D:57:2D:DF:03:F9:60:E2:35:4B
+      # (debug-level key for sideloaded APKs. For Play Store use your own key. Keep this repo private.)
+      # A DEBUG_KEYSTORE secret, if you add one, overrides this key.
+      - name: Restore signing key
+        env:
+          KS: ${{ secrets.DEBUG_KEYSTORE }}
+        run: |
+          mkdir -p ~/.android
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > ~/.android/debug.keystore
+          else
+            echo "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" | base64 -d > ~/.android/debug.keystore
+          fi
+      - name: Build
+        working-directory: ${{ steps.find.outputs.dir }}
+        run: |
+          flutter pub get
+          flutter build apk --release
+      - name: Show APK signing SHA-1 (must match Google Cloud)
+        run: |
+          APK="${{ steps.find.outputs.dir }}/build/app/outputs/flutter-apk/app-release.apk"
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          APKSIGNER=$(ls "$SDK"/build-tools/*/apksigner | sort -V | tail -1)
+          echo "### ${{ inputs.app }} app signing SHA-1" >> "$GITHUB_STEP_SUMMARY"
+          "$APKSIGNER" verify --print-certs "$APK" | grep -i "SHA-1" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
         with:
-          name: admin12-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          
+          name: ${{ inputs.app }}-apk
+          path: ${{ steps.find.outputs.dir }}/build/app/outputs/flutter-apk/app-release.apk
