@@ -9,7 +9,7 @@ import 'package:pocketbase/pocketbase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ====== CHANGE THESE TWO VALUES ======
-const kPbUrl = 'http://127.0.0.1:8090'; // local PocketBase (Termux on this phone). Change to your https URL when you host it.
+const kPbUrl = 'https://staffing-kinds-approaches-rankings.trycloudflare.com/_/'; // local PocketBase (Termux on this phone). Change to your https URL when you host it.
 const kGoogleWebClientId = '68828443779-9tiaoi9k0jhgtkroq59j9iauq961n8lb.apps.googleusercontent.com'; // Google Cloud "Web application" client id
 // =====================================
 
